@@ -6,8 +6,10 @@ suppressPackageStartupMessages({
   library(data.table); library(jsonlite); library(remotes)
 })
 source("src/rcppml.R")
-lib <- file.path(module_dir(), ".Rlib")
+.libPaths(c(file.path(module_dir(), ".Rlib"), .libPaths()))
 cat(sprintf("RcppML: %s\n", tryCatch(
-  as.character(utils::packageVersion("RcppML", lib.loc = lib)),
-  error = function(e) sprintf("not built yet (pinned %s)", substr(RCPPML_REF, 1, 7)))))
+  sprintf("%s (%s)", utils::packageVersion("RcppML"),
+          dirname(dirname(system.file(package = "RcppML")))),
+  error = function(e) sprintf("not present (would build pinned %s)",
+                              substr(RCPPML_REF, 1, 7)))))
 cat("OK\n")

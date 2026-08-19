@@ -30,7 +30,10 @@ load_rcppml <- function() {
     remotes::install_github(paste0("zdebruine/RcppML@", RCPPML_REF),
                             lib = lib, upgrade = "never")
   }
-  suppressPackageStartupMessages(library(RcppML, lib.loc = lib, quietly = TRUE))
+  # No lib.loc: .Rlib is already first on .libPaths(), and pinning to it would
+  # reject an RcppML supplied by conda (r-rcppml on almost-conductor), which is
+  # the preferred source once it is published.
+  suppressPackageStartupMessages(library(RcppML, quietly = TRUE))
   cat(sprintf("LOG: RcppML %s\n", utils::packageVersion("RcppML")))
 }
 
