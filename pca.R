@@ -31,11 +31,14 @@ p <- add_argument(p, "--solver", type = "character",
                   help = "RcppML method: lanczos, krylov, irlba, randomized, deflation")
 p <- add_argument(p, "--n_components", type = "integer", help = "number of PCs")
 p <- add_argument(p, "--random_seed", type = "integer", help = "seed")
+p <- add_argument(p, "--backend", type = "character", default = "cpu",
+                  help = "compute backend: cpu or gpu")
 args <- parse_args(p)
 
 run_pca <- function(X, args) {
   fit <- RcppML::svd(X, k = args$n_components, center = TRUE,
                      method = args$solver, seed = args$random_seed,
+                     resource = args$backend,
                      threads = omp_threads(), verbose = TRUE)
   list(embedding = fit@v %*% diag(fit@d, nrow = length(fit@d)),
        loadings  = fit@u)
@@ -44,6 +47,7 @@ run_pca <- function(X, args) {
 main <- function() {
   log_args(args)
   load_rcppml()
+  args$backend <- resolve_backend(args$backend)   # before the matrix read, not after
   m <- read_tenx(args$normalized_selected_h5)
 
   res <- run_pca(m, args)

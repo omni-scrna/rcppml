@@ -37,6 +37,31 @@ load_rcppml <- function() {
   cat(sprintf("LOG: RcppML %s\n", utils::packageVersion("RcppML")))
 }
 
+# --backend maps onto RcppML's `resource`. We never pass its "auto": that picks a
+# device from whatever the host happens to have, so the same invocation would
+# mean different things on different machines -- which a benchmark cannot have.
+#
+# RcppML only *warns* when a GPU is requested and missing, then runs on the CPU
+# anyway. Refuse instead: a CPU run recorded as a GPU arm is worse than a failed
+# job. Same stance omni-rmt-spca takes on its biwhitening fallback.
+resolve_backend <- function(backend) {
+  if (!backend %in% c("cpu", "gpu"))
+    stop("--backend must be cpu or gpu, got: ", backend, call. = FALSE)
+  if (backend == "gpu") {
+    if (!RcppML::gpu_available())
+      stop("--backend gpu, but RcppML reports no usable GPU. It needs ",
+           "RcppML_gpu", .Platform$dynlib.ext, ", which comes from a separate ",
+           "`make -f src/Makefile.gpu` against a CUDA toolkit -- neither the ",
+           "conda r-rcppml package nor this module's .Rlib build produces it. ",
+           "See the README.", call. = FALSE)
+    info <- RcppML::gpu_info()
+    for (i in seq_len(nrow(info)))
+      cat(sprintf("LOG: gpu %d: %s, %d MB total, %d MB free\n",
+                  info$device[i], info$name[i], info$total_mb[i], info$free_mb[i]))
+  }
+  backend
+}
+
 # OpenMP threads. Snakemake exports OMP_NUM_THREADS = <rule threads>; RcppML's
 # own default is 0 = grab every core, which would ignore the stage's `cores`.
 omp_threads <- function() as.integer(Sys.getenv("OMP_NUM_THREADS", "0"))

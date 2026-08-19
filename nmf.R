@@ -24,6 +24,8 @@ p <- add_base_args(p)                 # --output_dir, --name
 p <- add_stage_args(p, "PCA")         # --normalized_selected_h5
 p <- add_argument(p, "--n_components", type = "integer", help = "rank k")
 p <- add_argument(p, "--random_seed", type = "integer", help = "seed")
+p <- add_argument(p, "--backend", type = "character", default = "cpu",
+                  help = "compute backend: cpu or gpu")
 p <- add_argument(p, "--loss", type = "character", default = "mse",
                   help = "mse, gp, nb, gamma, inverse_gaussian or tweedie")
 args <- parse_args(p)
@@ -39,8 +41,9 @@ run_nmf <- function(X, args) {
   # verbose = FALSE on purpose: RcppML prints a per-iteration timing table,
   # ~100 lines a job, which buries the stage log.
   fit <- RcppML::nmf(X, k = args$n_components, loss = args$loss,
-                     seed = args$random_seed, threads = omp_threads(),
-                     verbose = FALSE)
+                     seed = args$random_seed,
+                     resource = args$backend,
+                     threads = omp_threads(), verbose = FALSE)
   list(embedding = t(fit@d * fit@h),   # d recycles down the k rows of h
        loadings  = fit@w)
 }
@@ -48,6 +51,7 @@ run_nmf <- function(X, args) {
 main <- function() {
   log_args(args)
   load_rcppml()
+  args$backend <- resolve_backend(args$backend)   # before the matrix read, not after
   m <- read_tenx(args$normalized_selected_h5)
 
   res <- run_nmf(m, args)

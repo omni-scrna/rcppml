@@ -9,7 +9,27 @@ Omnibenchmark **module** wrapping [zdebruine/RcppML](https://github.com/zdebruin
 | `pca` | `RcppML::svd(center = TRUE)` | `lanczos`, `krylov` (also `irlba`, `randomized`, `deflation`) |
 | `nmf` | `RcppML::nmf` | `mse`, `gp`, `nb`, `gamma`, `inverse_gaussian`, `tweedie` |
 
+Both also take `--backend cpu|gpu` (default `cpu`).
+
 No algorithm lives here — this is I/O plus the orientation bookkeeping.
+
+## `--backend`
+
+Maps onto RcppML's `resource`. The module never passes RcppML's own `"auto"`,
+which picks a device from whatever the host happens to have — the same
+invocation would then mean different things on different machines, which a
+benchmark cannot have. Default is `cpu`, so a plan that says nothing gets the
+reproducible thing.
+
+**`--backend gpu` does not work with either build we currently ship, on
+purpose loudly.** RcppML's GPU path needs `RcppML_gpu.so`, which comes from a
+separate `make -f src/Makefile.gpu` against a CUDA toolkit; neither `R CMD
+INSTALL` (the conda recipe) nor `remotes::install_github` (the `.Rlib` path)
+runs that step. RcppML itself only *warns* when a GPU is requested and missing,
+then computes on the CPU — so both entrypoints check `gpu_available()` and exit
+non-zero instead, before reading the matrix. A CPU run recorded as a GPU arm is
+worse than a failed job. Wiring the parameter up is the easy half; a CUDA-aware
+package is the real work, and it is not done.
 
 ## Orientation
 
@@ -101,6 +121,7 @@ Add `envs/rcppml.yml` to the plan's `software_environments`, then, under the
           - solver: [lanczos, krylov]
             n_components: 50
             random_seed: 42
+            backend: cpu
 ```
 
 The `nmf` entrypoint takes the same single input and emits the same two
