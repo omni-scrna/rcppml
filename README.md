@@ -24,7 +24,14 @@ Both entrypoints fold `d` into the scores, so the embedding carries the factor
 scale. Column names stay `PC1..PCk` in both, including for NMF factors, because
 the downstream metrics and validators key off that prefix.
 
-## RcppML is installed at run time, not by conda
+## Dependencies
+
+`pixi.toml` is the source of truth; `envs/rcppml.yml` is generated from it with
+`pixi run export-env` and is what omnibenchmark's conda backend actually
+consumes (the plan sets `software_backend: conda`). Do not hand-edit the yml.
+`pixi run check` verifies the env imports.
+
+### RcppML itself is installed at run time, not by conda
 
 conda-forge stops at `r-rcppml` 0.3.7.1, which predates `svd()`, `pca()` and the
 lanczos/krylov backends entirely. `envs/rcppml.yml` therefore ships only the
