@@ -1,0 +1,17 @@
+# OmniBenchmark Module Configuration
+
+entrypoints:
+  pca: pca.R
+  nmf: nmf.R
+
+# Shared CLI helper code (src/common/) is pulled from the boilerplate.
+templates:
+  repo: https://github.com/omni-scrna/boilerplate
+  ref: main
+  lang: r
+
+benchmarks:
+  - name: split-stages
+    repo: https://github.com/omni-scrna/split-stages-plan
+    plan: benchmark_conda.yaml
+    ref: main
