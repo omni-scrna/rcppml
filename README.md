@@ -11,15 +11,10 @@ Omnibenchmark **module** wrapping [zdebruine/RcppML](https://github.com/zdebruin
 
 Both also take `--backend cpu|gpu` (default `cpu`).
 
-No algorithm lives here — this is I/O plus the orientation bookkeeping.
-
 ## `--backend`
 
 Maps onto RcppML's `resource`. The module never passes RcppML's own `"auto"`,
-which picks a device from whatever the host happens to have — the same
-invocation would then mean different things on different machines, which a
-benchmark cannot have. Default is `cpu`, so a plan that says nothing gets the
-reproducible thing.
+which picks a device from whatever the host happens to have. Default is `cpu`.
 
 **`--backend gpu` does not work with either build we currently ship, on
 purpose loudly.** RcppML's GPU path needs `RcppML_gpu.so`, which comes from a
@@ -29,7 +24,7 @@ runs that step. RcppML itself only *warns* when a GPU is requested and missing,
 then computes on the CPU — so both entrypoints check `gpu_available()` and exit
 non-zero instead, before reading the matrix. A CPU run recorded as a GPU arm is
 worse than a failed job. Wiring the parameter up is the easy half; a CUDA-aware
-package is the real work, and it is not done.
+package is the real work, and it is not done yet.
 
 ## Orientation
 
@@ -51,7 +46,7 @@ the downstream metrics and validators key off that prefix.
 consumes (the plan sets `software_backend: conda`). Do not hand-edit the yml.
 `pixi run check` verifies the env imports.
 
-### RcppML itself is installed at run time, not by conda
+### RcppML itself is installed at run time, not by conda (TBD).
 
 conda-forge stops at `r-rcppml` 0.3.7.1, which predates `svd()`, `pca()` and the
 lanczos/krylov backends entirely. `envs/rcppml.yml` therefore ships only the
@@ -74,34 +69,13 @@ NMF is only defined on non-negative data. `nr-scanpy`'s
 fit it anyway, so `nmf.R` exits non-zero instead of contributing a meaningless
 embedding. Pair it with a `log1pCP10k`-style NORM arm.
 
-## Measured on be1-fixture
-
-2000 genes x 1715 cells, `n_components: 50`, `random_seed: 42`,
-`OMP_NUM_THREADS=4`, against the sibling runs on the identical input:
-
-| arm | wall | peak RSS | min &#124;cor&#124; vs scanpy arpack, PC1-50 |
-|---|---|---|---|
-| `pca --solver lanczos` | 6.1 s | 545 MB | 0.999886 (median 1.000000) |
-| `pca --solver krylov`  | 5.8 s | 545 MB | 0.999886 (median 1.000000) |
-| `nmf --loss mse`       | 7.4 s | 554 MB | n/a |
-
-Same numbers against `pc-scrapper solver-exact`. Only PC50 falls below
-1.000000 — the usual tail-component wobble, not a disagreement about the
-subspace. lanczos and krylov agree with each other to 1.000000 on all 50, so at
-this size krylov's refinement has nothing left to do after its Lanczos seed.
-
-The NMF embedding is 48% exact zeros, both factors non-negative. Mean
-silhouette of the true cell lines: 0.265 (PCA) vs 0.275 (NMF) over all 50 dims,
-0.392 vs 0.172 over the first 10 — NMF factors are not variance-ordered, so
-truncating them is not the same operation as truncating PCs.
-
 ## Test
 
     tests/smoke.sh <dataset>_normalized_selected.h5
 
 Runs both entrypoints and checks the two TSVs against the stage contract.
 
-## Wiring into split-stages-plan
+## Usage in omni-scrna
 
 Add `envs/rcppml.yml` to the plan's `software_environments`, then, under the
 `PCA` stage:
@@ -126,6 +100,4 @@ Add `envs/rcppml.yml` to the plan's `software_environments`, then, under the
 
 The `nmf` entrypoint takes the same single input and emits the same two
 outputs, so it drops into the `PCA` stage the same way (`entrypoint: nmf`,
-`loss: [mse]`). Putting it in `CNTFCT` instead means also accepting that
-stage's other two inputs (`--rawdata_h5ad`, `--filtered_cellids`), which the
-module does not currently declare.
+`loss: [mse]`). 
