@@ -47,6 +47,27 @@ NMF is only defined on non-negative data. `nr-scanpy`'s
 fit it anyway, so `nmf.R` exits non-zero instead of contributing a meaningless
 embedding. Pair it with a `log1pCP10k`-style NORM arm.
 
+## Measured on be1-fixture
+
+2000 genes x 1715 cells, `n_components: 50`, `random_seed: 42`,
+`OMP_NUM_THREADS=4`, against the sibling runs on the identical input:
+
+| arm | wall | peak RSS | min &#124;cor&#124; vs scanpy arpack, PC1-50 |
+|---|---|---|---|
+| `pca --solver lanczos` | 6.1 s | 545 MB | 0.999886 (median 1.000000) |
+| `pca --solver krylov`  | 5.8 s | 545 MB | 0.999886 (median 1.000000) |
+| `nmf --loss mse`       | 7.4 s | 554 MB | n/a |
+
+Same numbers against `pc-scrapper solver-exact`. Only PC50 falls below
+1.000000 — the usual tail-component wobble, not a disagreement about the
+subspace. lanczos and krylov agree with each other to 1.000000 on all 50, so at
+this size krylov's refinement has nothing left to do after its Lanczos seed.
+
+The NMF embedding is 48% exact zeros, both factors non-negative. Mean
+silhouette of the true cell lines: 0.265 (PCA) vs 0.275 (NMF) over all 50 dims,
+0.392 vs 0.172 over the first 10 — NMF factors are not variance-ordered, so
+truncating them is not the same operation as truncating PCs.
+
 ## Test
 
     tests/smoke.sh <dataset>_normalized_selected.h5
