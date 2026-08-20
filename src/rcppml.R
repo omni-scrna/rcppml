@@ -1,39 +1,13 @@
 # Shared helpers for the RcppML entrypoints (pca.R, nmf.R).
-#
-# RcppML 1.0.0 is where svd()/pca() and the lanczos/krylov backends live, and
-# it is GitHub-only -- conda-forge still ships 0.3.7.1, which has none of them.
-# So the env carries the toolchain and we install the pinned commit into a
-# module-local lib on first use, the same build-on-first-use trick
-# omni-rmt-spca uses for its Rust crate. Cached in the module clone, so it is
-# paid once per clone, not once per job.
 
-RCPPML_REF <- "df69dddbe37962cd0179b6b6c6ace94e400b4f60"  # zdebruine/RcppML @ v1.0.0
-RCPPML_MIN <- "1.0.0"
+RCPPML_MIN <- "1.0.0"   # svd()/pca() and the lanczos/krylov backends start here
 
-module_dir <- function() {
-  cargs <- commandArgs(trailingOnly = FALSE)
-  m <- grep("^--file=", cargs)
-  if (length(m) > 0) dirname(normalizePath(sub("^--file=", "", cargs[[m]]))) else getwd()
-}
-
-# ponytail: version check, not ref check. Bumping RCPPML_REF within 1.0.0 will
-# not invalidate a cached lib -- wipe .Rlib by hand if that ever matters.
 load_rcppml <- function() {
-  lib <- file.path(module_dir(), ".Rlib")
-  dir.create(lib, showWarnings = FALSE, recursive = TRUE)
-  .libPaths(c(lib, .libPaths()))
-  have <- requireNamespace("RcppML", quietly = TRUE) &&
-    utils::packageVersion("RcppML") >= RCPPML_MIN
-  if (!have) {
-    cat(sprintf("LOG: installing RcppML@%s into %s (first use, ~minutes)\n",
-                substr(RCPPML_REF, 1, 7), lib))
-    remotes::install_github(paste0("zdebruine/RcppML@", RCPPML_REF),
-                            lib = lib, upgrade = "never")
-  }
-  # No lib.loc: .Rlib is already first on .libPaths(), and pinning to it would
-  # reject an RcppML supplied by conda (r-rcppml on almost-conductor), which is
-  # the preferred source once it is published.
   suppressPackageStartupMessages(library(RcppML, quietly = TRUE))
+  if (utils::packageVersion("RcppML") < RCPPML_MIN)
+    stop("RcppML ", utils::packageVersion("RcppML"), " < ", RCPPML_MIN,
+         "; the env must pull r-rcppml from the almost-conductor channel, not ",
+         "conda-forge (which stops at 0.3.7.1).", call. = FALSE)
   cat(sprintf("LOG: RcppML %s\n", utils::packageVersion("RcppML")))
 }
 
@@ -50,13 +24,12 @@ resolve_backend <- function(backend) {
   if (backend == "gpu") {
     if (!RcppML::gpu_available())
       stop("--backend gpu, but RcppML reports no usable GPU. It needs ",
-           "RcppML_gpu", .Platform$dynlib.ext, ", which comes from a separate ",
-           "`make -f src/Makefile.gpu` against a CUDA toolkit -- neither the ",
-           "conda r-rcppml package nor this module's .Rlib build produces it. ",
-           "See the README.", call. = FALSE)
+           "RcppML_gpu", .Platform$dynlib.ext, " plus a visible CUDA device. The ",
+           "r-rcppml conda package ships that library; a source build via ",
+           "`R CMD INSTALL` does not. See the README.", call. = FALSE)
     info <- RcppML::gpu_info()
     for (i in seq_len(nrow(info)))
-      cat(sprintf("LOG: gpu %d: %s, %d MB total, %d MB free\n",
+      cat(sprintf("LOG: gpu %.0f: %s, %.0f MB total, %.0f MB free\n",
                   info$device[i], info$name[i], info$total_mb[i], info$free_mb[i]))
   }
   backend

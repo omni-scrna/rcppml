@@ -16,15 +16,26 @@ Both also take `--backend cpu|gpu` (default `cpu`).
 Maps onto RcppML's `resource`. The module never passes RcppML's own `"auto"`,
 which picks a device from whatever the host happens to have. Default is `cpu`.
 
-**`--backend gpu` does not work with either build we currently ship, on
-purpose loudly.** RcppML's GPU path needs `RcppML_gpu.so`, which comes from a
-separate `make -f src/Makefile.gpu` against a CUDA toolkit; neither `R CMD
-INSTALL` (the conda recipe) nor `remotes::install_github` (the `.Rlib` path)
-runs that step. RcppML itself only *warns* when a GPU is requested and missing,
-then computes on the CPU — so both entrypoints check `gpu_available()` and exit
-non-zero instead, before reading the matrix. A CPU run recorded as a GPU arm is
-worse than a failed job. Wiring the parameter up is the easy half; a CUDA-aware
-package is the real work, and it is not done yet.
+`--backend gpu` needs `RcppML_gpu.so` plus a visible CUDA device. The
+`r-rcppml` conda package ships that library (a plain `R CMD INSTALL` /
+`install_github` build does not, which is why this used to be unusable). RcppML
+itself only *warns* when a GPU is requested and missing, then computes on the
+CPU — so both entrypoints check `gpu_available()` and exit non-zero instead,
+before reading the matrix. A CPU run recorded as a GPU arm is worse than a
+failed job.
+
+Measured on an RTX 2000 Ada laptop GPU vs 8 CPU threads, k = 50, solver time
+only (the h5 read is unchanged and dominates wall clock on small inputs):
+
+| input (genes x cells, nnz) | svd cpu → gpu | nmf cpu → gpu |
+|---|---|---|
+| be1-fixture 2000 x 1715, 1.1M | 0.17 → 0.47 s (slower) | 1.2 → 0.7 s |
+| tenx-0020k 2000 x 19696, 13.4M | 1.34 → 0.44 s (3x) | 8.2 → 1.4 s (6x) |
+| pbmc 2000 x 156881, 96.4M | 9.7 → 2.5 s (3.8x) | 121 → 14.4 s (8.4x) |
+
+Below ~10M nonzeros the CUDA context setup (~0.3 s) eats the gain; NMF profits
+more than SVD at every size. CPU and GPU embeddings agree to |cor| > 1 - 1e-7
+per PC on tenx-0020k.
 
 ## Orientation
 
@@ -44,17 +55,14 @@ the downstream metrics and validators key off that prefix.
 `pixi.toml` is the source of truth; `envs/rcppml.yml` is generated from it with
 `pixi run export-env` and is what omnibenchmark's conda backend actually
 consumes (the plan sets `software_backend: conda`). Do not hand-edit the yml.
-`pixi run check` verifies the env imports.
+`pixi run check` verifies the env imports and reports `gpu_available`.
 
-### RcppML itself is installed at run time, not by conda (TBD).
+RcppML 1.0.0 comes from the [`almost-conductor`][chan] channel, listed ahead of
+conda-forge, which stops at 0.3.7.1 — that version predates `svd()`, `pca()` and
+the lanczos/krylov backends entirely. The module used to build the pinned
+GitHub commit into a local `.Rlib/` on first use; the package replaced that.
 
-conda-forge stops at `r-rcppml` 0.3.7.1, which predates `svd()`, `pca()` and the
-lanczos/krylov backends entirely. `envs/rcppml.yml` therefore ships only the
-toolchain, and `src/rcppml.R` installs the pinned commit
-(`df69ddd`, v1.0.0) into a module-local `.Rlib/` on first use — the same
-build-on-first-use trick `omni-rmt-spca` uses for its Rust crate. Cached per
-module clone, so it is paid once, not once per job. First run costs ~10 min of
-C++ compilation.
+[chan]: https://prefix.dev/channels/almost-conductor/packages/r-rcppml
 
 ## Thread count
 

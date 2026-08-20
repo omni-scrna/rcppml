@@ -3,7 +3,7 @@
 #
 #   tests/smoke.sh path/to/<dataset>_normalized_selected.h5
 #
-# Run from the module root, in the rcppml env. First run pays the RcppML build.
+# Run from the module root, in the rcppml env.
 set -eu
 cd "$(dirname "$0")/.."
 H5=${1:?usage: tests/smoke.sh <normalized_selected.h5>}
