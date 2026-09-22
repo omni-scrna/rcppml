@@ -66,7 +66,7 @@ write_factors <- function(embedding, loadings, args) {
               nrow(embedding), ncol(embedding), nrow(loadings), ncol(loadings)))
 
   dir.create(args$output_dir, showWarnings = FALSE, recursive = TRUE)
-  out_e <- file.path(args$output_dir, sprintf("%s_pcas.tsv", args$name))
+  out_e <- file.path(args$output_dir, sprintf("%s_embedding.tsv", args$name))
   data.table::fwrite(data.frame(cell_id = rownames(embedding), embedding),
                      out_e, sep = "\t", quote = FALSE, row.names = FALSE)
   cat(sprintf("  wrote: %s\n", out_e))

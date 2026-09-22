@@ -1,7 +1,7 @@
 # rcppml
 
 Omnibenchmark **module** wrapping [zdebruine/RcppML](https://github.com/zdebruine/RcppML)
-1.0.0. Two entrypoints, both emitting the standard `{dataset}_pcas.tsv` +
+1.0.0. Two entrypoints, both emitting the standard `{dataset}_embedding.tsv` +
 `{dataset}_loadings.tsv` pair:
 
 | entrypoint | function | `--solver` / `--loss` |
