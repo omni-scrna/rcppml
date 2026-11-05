@@ -66,12 +66,12 @@ write_factors <- function(embedding, loadings, args) {
               nrow(embedding), ncol(embedding), nrow(loadings), ncol(loadings)))
 
   dir.create(args$output_dir, showWarnings = FALSE, recursive = TRUE)
-  out_e <- file.path(args$output_dir, sprintf("%s_embedding.tsv", args$name))
+  out_e <- output_path(args, "embedding_tsv", "_embedding.tsv")
   data.table::fwrite(data.frame(cell_id = rownames(embedding), embedding),
                      out_e, sep = "\t", quote = FALSE, row.names = FALSE)
   cat(sprintf("  wrote: %s\n", out_e))
 
-  out_l <- file.path(args$output_dir, sprintf("%s_loadings.tsv", args$name))
+  out_l <- output_path(args, "loadings_tsv", "_loadings.tsv")
   data.table::fwrite(data.frame(gene_id = rownames(loadings), loadings),
                      out_l, sep = "\t", quote = FALSE, row.names = FALSE)
   cat(sprintf("  wrote: %s\n", out_l))

@@ -33,7 +33,7 @@ p <- add_argument(p, "--n_components", type = "integer", help = "number of PCs")
 p <- add_argument(p, "--random_seed", type = "integer", help = "seed")
 p <- add_argument(p, "--backend", type = "character", default = "cpu",
                   help = "compute backend: cpu or gpu")
-args <- parse_args(p)
+args <- parse_args_outputs(p)  # argparser, minus --output id=PATH (api 0.8)
 
 run_pca <- function(X, args) {
   fit <- RcppML::svd(X, k = args$n_components, center = TRUE,
