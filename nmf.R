@@ -28,7 +28,7 @@ p <- add_argument(p, "--backend", type = "character", default = "cpu",
                   help = "compute backend: cpu or gpu")
 p <- add_argument(p, "--loss", type = "character", default = "mse",
                   help = "mse, gp, nb, gamma, inverse_gaussian or tweedie")
-args <- parse_args(p)
+args <- parse_args_outputs(p)  # argparser, minus --output id=PATH (api 0.8)
 
 run_nmf <- function(X, args) {
   # NMF is only defined on non-negative input. Pearson-residual normalisation
